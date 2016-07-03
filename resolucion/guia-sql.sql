@@ -155,29 +155,102 @@ where p.prod_codigo in (select top 10 item_producto
 						order by sum(i1.item_cantidad) asc)
 group by i.item_producto, p.prod_detalle
 
+/* 11. Realizar una consulta que retorne el detalle de la familia, la cantidad diferentes de
+productos vendidos y el monto de dichas ventas sin impuestos. Los datos se deberán
+ordenar de mayor a menor, por la familia que más productos diferentes vendidos
+tenga, solo se deberán mostrar las familias que tengan una venta superior a 20000
+pesos para el año 2012. */
+select fami_detalle, count(distinct prod_codigo), sum(fact_total)
+from Familia
+join Producto on fami_id = prod_familia
+join Item_Factura on prod_codigo = item_producto
+join Factura on (item_tipo = fact_tipo and item_sucursal = fact_sucursal
+				and item_numero = fact_numero)
+where year(fact_fecha) = 2012
+group by fami_detalle
+having (sum(fact_total)) > 20000
+order by 3 desc
 
+/* 12. Mostrar nombre de producto, cantidad de clientes distintos que lo compraron
+importe promedio pagado por el producto, cantidad de depósitos en lo cuales hay
+stock del producto y stock actual del producto en todos los depósitos. Se deberán
+mostrar aquellos productos que hayan tenido operaciones en el año 2012 y los datos
+deberán ordenarse de mayor a menor por monto vendido del producto. */
+select prod_detalle, 
+		cantidadClientes = count(distinct fact_cliente), 
+		promedioPagado = avg(item_precio),
+		cantidadDepositosConStock = (select count(distinct stoc_deposito) from STOCK
+										where stoc_producto = prod_codigo),
+		cantidadStockTotal = (select sum(stoc_cantidad) from Stock 
+								where stoc_producto = prod_codigo)
+from Producto
+join Item_Factura on prod_codigo = item_producto
+join Factura on (item_tipo = fact_tipo and item_sucursal = fact_sucursal
+				and item_numero = fact_numero)
+where prod_codigo in (select distinct prod_codigo 
+						from Producto
+						join Item_Factura on prod_codigo = item_producto
+						join Factura on (item_tipo = fact_tipo and item_sucursal = fact_sucursal
+										and item_numero = fact_numero)
+						where year(fact_fecha) = 2012)
+group by prod_detalle, prod_codigo
+order by 3 desc
 
+/* 13. Realizar una consulta que retorne para cada producto que posea composición
+nombre del producto, precio del producto, precio de la sumatoria de los precios por
+la cantidad de los productos que lo componen. Solo se deberán mostrar los
+productos que estén compuestos por más de 2 productos y deben ser ordenados de
+mayor a menor por cantidad de productos que lo componen. */
+select pr.prod_detalle, 
+	pr.prod_precio, 
+	sumaPresioComponentes = sum(comp.prod_precio * c.comp_cantidad) 
+from producto pr
+join composicion c on c.comp_producto = pr.prod_codigo
+join producto comp on c.comp_componente = comp.prod_codigo
+group by pr.prod_detalle, pr.prod_precio
+having sum(c.comp_cantidad) > 2
+order by sum(c.comp_cantidad) desc
 
+/* 14. Escriba una consulta que retorne una estadística de ventas por cliente. Los campos
+que debe retornar son:
+Código del cliente
+Cantidad de veces que compro en el último año
+Promedio por compra en el último año
+Cantidad de productos diferentes que compro en el último año
+Monto de la mayor compra que realizo en el último año
+Se deberán retornar todos los clientes ordenados por la cantidad de veces que
+compro en el último año.
+No se deberán visualizar NULLs en ninguna columna */
+select clie_codigo, 
+		cant_compras = isNull(count(fact_cliente),0), 
+		prodCompradosDistintos = isnull(count(distinct item_producto),0), 
+		promedioComprado = isnull(avg(fact_total),0), 
+		maximaCompra = isnull(max(fact_total),0)
+from Cliente
+join Factura on clie_codigo = fact_cliente
+join Item_Factura on item_tipo = fact_tipo AND item_sucursal = fact_sucursal AND item_numero = fact_numero
+where year(fact_fecha) = 2012
+group by clie_codigo
+order by count(fact_cliente) desc
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/* 15. Escriba una consulta que retorne los pares de productos que hayan sido vendidos
+juntos (en la misma factura) más de 500 veces. El resultado debe mostrar el código
+y descripción de cada uno de los productos y la cantidad de veces que fueron
+vendidos juntos. El resultado debe estar ordenado por la cantidad de veces que se
+vendieron juntos dichos productos. Los distintos pares no deben retornarse más de
+una vez.
+Ejemplo de lo que retornaría la consulta:
+PROD1 DETALLE1 PROD2 DETALLE2 VECES
+1731 MARLBORO KS 1 7 1 8 P H ILIPS MORRIS KS 5 0 7
+1718 PHILIPS MORRIS KS 1 7 0 5 P H I L I P S MORRIS BOX 10 5 6 2 */
+select p1.prod_codigo, p1.prod_detalle, p2.prod_codigo, p2.prod_detalle, COUNT (*) as Cantidad
+from Producto p1, Producto p2, Item_Factura i, Item_Factura i2
+where p1.prod_codigo=i.item_producto and
+p2.prod_codigo=i2.item_producto and
+i.item_numero=i2.item_numero and
+p1.prod_codigo > p2.prod_codigo
+group by p1.prod_codigo, p1.prod_detalle, p2.prod_codigo, p2.prod_detalle
+having COUNT (*) > 500 
 
 
 
